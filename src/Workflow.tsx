@@ -3,7 +3,7 @@ import {X,Plus,ArrowRight,ChevronRight} from 'lucide-react'
 import {balance,createDocument,day,documentStatus,locations,money,partyBalance,receive,recordPayment,recordReturn,returnable,totalLines,type Data,type Line} from './demo'
 import {Badge,Table,Field,warehouse,partyName,itemName,documentName} from './ui'
 
-const titles = {purchase:'New purchase order',sale:'New sale',receive:'Receive purchase order',payment:'Record payment',return:'New sales return',preview:'Document preview',statement:'Party statement',item:'Add catalogue item',party:'Add trading partner',reset:'Reset Demo Data',search:'Search workspace',guide:'Demo walkthrough'}
+const titles = {purchase:'New purchase order',sale:'New sale',receive:'Receive purchase order',payment:'Record payment',return:'New sales return',preview:'Document preview',statement:'Party statement',item:'Add catalogue item',deleteItem:'Delete catalogue item',party:'Add trading partner',reset:'Reset Demo Data',search:'Search workspace',guide:'Demo walkthrough'}
 export type Dialog = {type:keyof typeof titles;id?:string}
 type Props = {dialog:Dialog;data:Data;error:string;close:()=>void;change:(work:(d:Data)=>void,message:string,keep?:boolean)=>void;open:(type:Dialog['type'],id?:string)=>void;pages:string[];navigate:(p:string)=>void;reset:()=>void}
 const str=(f:FormData,key:string)=>String(f.get(key)??'').trim()
@@ -15,6 +15,8 @@ export function Workflow({dialog,data,error,close,change,open,pages,navigate,res
   const [element,setElement]=useState<HTMLDialogElement|null>(null)
   useEffect(()=>{if(element&&!element.open)element.showModal()},[element])
   const doc=data.docs.find(d=>d.id===id)
+  const catalogueItem=data.products.find(p=>p.id===id)
+  const itemInUse=(records:Data)=>records.moves.some(m=>m.item===id)||records.docs.some(d=>d.lines.some(l=>l.item===id))
   const party=data.parties.find(p=>p.id===id)
   const purchase=type==='purchase'
   const invoices=data.docs.filter(d=>d.kind==='Sale'&&d.lines.some(l=>returnable(data,d,l.item)>0))
@@ -36,7 +38,7 @@ export function Workflow({dialog,data,error,close,change,open,pages,navigate,res
   const totals=(subtotal:number,tax:number,total:number)=><div className="totals"><div><span>Subtotal</span><b>{money(subtotal)}</b></div><div><span>Demo tax</span><b>{money(tax)}</b></div><div><span>Total</span><strong>{money(total)}</strong></div></div>
   const printActions=(label:string)=><div className="dialog-actions"><button className="secondary" onClick={close}>Close</button><button className="primary" onClick={()=>window.print()}>{label}</button></div>
   return <dialog ref={setElement} className={'dialog '+(['preview','statement'].includes(type)?'printable':'')} aria-labelledby="dialog-title" onCancel={e=>{e.preventDefault();close()}} onClick={e=>{if(e.target===e.currentTarget)close()}}>
-    <div className="dialog-wrap"><div className="dialog-head"><h2 id="dialog-title">{titles[type]}</h2><button className="icon" aria-label="Close dialog" onClick={close}><X size={21}/></button></div>
+    <div className="dialog-wrap"><div className="dialog-head"><h2 id="dialog-title">{type==='item'&&id?'Edit catalogue item':titles[type]}</h2><button className="icon" aria-label="Close dialog" onClick={close}><X size={21}/></button></div>
     {error&&<p className="error" role="alert">{error}</p>}
     {(purchase||type==='sale')&&form(f=>change(d=>{createDocument(d,purchase?'Purchase':'Sale',str(f,'party'),str(f,'warehouse'),lines,tender==='Pay now',str(f,'method'))},purchase?'Purchase order created.':'Sale posted. Stock and balances updated.'),<>
       <div className="form-grid"><Field label={purchase?'Supplier':'Customer'}><select name="party" required>{data.parties.filter(p=>p.type===(purchase?'Supplier':'Customer')).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></Field><Field label="Warehouse"><select name="warehouse">{locations.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></Field></div>
@@ -55,13 +57,43 @@ export function Workflow({dialog,data,error,close,change,open,pages,navigate,res
       <div className="form-grid"><Field label="Stock disposition"><select name="disposition"><Options values={['Restock as sellable','Scrap']}/></select></Field><Field label="Financial settlement"><select name="settlement"><Options values={['Credit note','Refund']}/></select></Field></div>{buttons('Post return')}
     </>):<p className="empty">No sales invoices have an eligible return quantity.</p>)}
 
-    {type==='item'&&form(f=>change(d=>{
-      const sku=str(f,'sku').toUpperCase(),name=str(f,'name')
-      if(!name||!sku||d.products.some(p=>p.sku===sku))throw Error('Enter an item name and a unique SKU.')
-      d.products.push({id:crypto.randomUUID(),sku,name,category:str(f,'category')||'Uncategorised',unit:str(f,'unit')||'Unit',price:number(f,'price'),reorder:number(f,'reorder')})
-    },'Catalogue item added.'),<>
-      <div className="form-grid">{[['Item name','name'],['SKU','sku'],['Category','category'],['Unit','unit']].map(([label,key])=><Field key={key} label={label}><input name={key} required/></Field>)}<Field label="Selling price (PKR)"><input name="price" type="number" min="0" step=".01" required/></Field><Field label="Reorder level"><input name="reorder" type="number" min="0" step="1" required/></Field></div>{buttons('Add item')}
+    {type==='item'&&(!id||catalogueItem)&&form(f=>change(d=>{
+      const sku=str(f,'sku').toUpperCase(), name=str(f,'name')
+      if(!name||!sku||d.products.some(p=>p.id!==id&&p.sku.toUpperCase()===sku))throw Error('Enter an item name and a unique SKU.')
+      const existing=d.products.find(p=>p.id===id)
+      if(id&&!existing)throw Error('This item no longer exists.')
+      const values={
+        sku,name,category:str(f,'category')||'Uncategorised',
+        unit:existing&&itemInUse(d)?existing.unit:str(f,'unit')||'Unit',
+        price:number(f,'price'),reorder:number(f,'reorder'),
+      }
+      if(existing)Object.assign(existing,values)
+      else d.products.push({id:crypto.randomUUID(),...values})
+    },id?'Catalogue item updated.':'Catalogue item added.'),<>
+      <div className="form-grid">
+        <Field label="Item name"><input name="name" defaultValue={catalogueItem?.name} required/></Field>
+        <Field label="SKU"><input name="sku" defaultValue={catalogueItem?.sku} required/></Field>
+        <Field label="Category"><input name="category" defaultValue={catalogueItem?.category} required/></Field>
+        <Field label="Unit"><input name="unit" defaultValue={catalogueItem?.unit} readOnly={!!id&&itemInUse(data)} required/></Field>
+        <Field label="Selling price (PKR)"><input name="price" type="number" min="0" step=".01" defaultValue={catalogueItem?.price} required/></Field>
+        <Field label="Reorder level"><input name="reorder" type="number" min="0" step="1" defaultValue={catalogueItem?.reorder} required/></Field>
+      </div>
+      {id&&itemInUse(data)&&<p>The unit is locked because stock or transaction records already use it.</p>}
+      {buttons(id?'Save changes':'Add item')}
     </>)}
+    {type==='deleteItem'&&catalogueItem&&<>
+      <p className="body-copy">{itemInUse(data)
+        ? catalogueItem.name+' is linked to stock movements or documents and cannot be deleted.'
+        : 'Delete '+catalogueItem.name+' ('+catalogueItem.sku+') from the catalogue?'}</p>
+      <div className="dialog-actions">
+        <button className="secondary" onClick={close}>{itemInUse(data)?'Close':'Cancel'}</button>
+        {!itemInUse(data)&&<button className="danger" onClick={()=>change(d=>{
+          if(itemInUse(d))throw Error('This item is now linked to stock movements or documents.')
+          d.products=d.products.filter(p=>p.id!==id)
+        },'Catalogue item deleted.')}>Delete item</button>}
+      </div>
+    </>}
+    {((type==='item'&&id)||type==='deleteItem')&&!catalogueItem&&<p className="empty">This item no longer exists.</p>}
     {type==='party'&&form(f=>change(d=>{
       const name=str(f,'name')
       if(!name)throw Error('Enter the trading partner name.')
