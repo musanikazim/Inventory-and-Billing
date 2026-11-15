@@ -133,7 +133,7 @@ function Workspace({user,signOut}:{user:User;signOut:()=>void}) {
   return <div className="app">
     {menu&&<button className="mobile-overlay" aria-label="Close menu" onClick={()=>setMenu(false)}/>}
     <aside className={'sidebar '+(menu?'shown':'')}>
-      <a href={"#"+encodeURIComponent(available[0][0])} className="brand"><span className="brand-mark"><Layers3 size={23}/></span><div>Blueledger<small>INVENTORY & BILLING</small></div></a>
+      <a href={"#"+encodeURIComponent(available[0][0])} className="brand"><span className="brand-mark"><Layers3 size={23}/></span><div>IvisionLedger<small>INVENTORY & BILLING</small></div></a>
       <div className="business"><span><Building2 size={17}/></span><div><strong>Meridian Supply Co.</strong><small>Demo workspace</small></div></div>
       <nav aria-label="Workspace">{nav.map(([p,Icon],i)=>can(p)&&<div key={p}>{[0,1,8].includes(i)&&<small className="nav-heading">{i===0?'WORKSPACE':i===1?'OPERATIONS':'MANAGE'}</small>}<a href={'#'+encodeURIComponent(p)} onClick={()=>setMenu(false)} aria-current={p===page?'page':undefined}><Icon size={17}/>{p}</a></div>)}</nav>
       {canOpen("guide")&&<button className="guide" onClick={()=>open('guide')}>Demo walkthrough <ArrowRight size={15}/></button>}
@@ -189,7 +189,7 @@ function Workspace({user,signOut}:{user:User;signOut:()=>void}) {
             return result
           }}/>
         </section>}
-        <footer>Blueledger <span>·</span> Interactive demo <span>·</span> Fictional data</footer>
+        <footer>IvisionLedger <span>·</span> Interactive demo <span>·</span> Fictional data</footer>
       </main>
     </div>
     {can('AI Assistant')&&<button className="primary assistant-launch" aria-label="Toggle AI chat" aria-controls="workspace-assistant"

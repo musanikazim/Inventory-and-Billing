@@ -19,7 +19,7 @@ export function Login({onLogin}:{onLogin:(user:User)=>void}) {
   return <main className="account-login">
     <section className="account-brand">
       <span className="brand-mark"><Layers3 size={23}/></span>
-      <h1>Blueledger</h1>
+      <h1>IvisionLedger</h1>
       <p>Manage inventory, purchasing, sales and billing in one workspace.</p>
     </section>
     <section className="account-signin">

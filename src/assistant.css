@@ -27,3 +27,8 @@
 .app:has(.assistant-launch) .toast{bottom:76px;z-index:9}
 @media(max-width:575px){.assistant-float,.assistant-launch{right:12px}}
 @media print{.assistant-float,.assistant-launch{display:none!important}}
+
+/* Reserve the lower-right corner for Netlify's injected badge. */
+body:has(script[data-nf-variant="public"], script[src*="/.netlify/scripts/hud?variant=public"]) .assistant-launch{bottom:72px}
+body:has(script[data-nf-variant="public"], script[src*="/.netlify/scripts/hud?variant=public"]) .assistant-float{bottom:126px;max-height:calc(100dvh - 144px)}
+body:has(script[data-nf-variant="public"], script[src*="/.netlify/scripts/hud?variant=public"]) .app:has(.assistant-launch) .toast{bottom:126px}
