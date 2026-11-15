@@ -153,6 +153,15 @@ export function seed(): Data {
   createDocument(data,'Purchase','s2','LHR',[{item:'p2',qty:40,price:480},{item:'p6',qty:24,price:255}],false,'Cash')
   return data
 }
+export function updateProduct(data:Data,id:string,values:Omit<Product,'id'>) {
+  const current=data.products.find(p=>p.id===id)
+  if(!current)throw Error('This item no longer exists.')
+  if(!values.name.trim()||!values.sku.trim()||data.products.some(p=>p.id!==id&&p.sku.toUpperCase()===values.sku.toUpperCase()))throw Error('Enter an item name and a unique SKU.')
+  if(!Number.isFinite(values.price)||values.price<0||!Number.isInteger(values.reorder)||values.reorder<0)throw Error('Enter a valid selling price and whole reorder level.')
+  const inUse=data.moves.some(m=>m.item===id)||data.docs.some(d=>d.lines.some(l=>l.item===id))
+  Object.assign(current,values,{unit:inUse?current.unit:values.unit})
+}
+
 export interface DemoRepository {
   load(): Data
   transact(change: (draft: Data) => void): Data

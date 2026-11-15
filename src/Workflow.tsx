@@ -1,16 +1,16 @@
 import {useEffect,useState,type ReactNode} from 'react'
 import {X,Plus,ArrowRight,ChevronRight} from 'lucide-react'
-import {balance,createDocument,day,documentStatus,locations,money,partyBalance,receive,recordPayment,recordReturn,returnable,totalLines,type Data,type Line} from './demo'
+import {balance,createDocument,day,documentStatus,locations,money,partyBalance,receive,recordPayment,recordReturn,returnable,totalLines,updateProduct,type Data,type Line} from './demo'
 import {Badge,Table,Field,warehouse,partyName,itemName,documentName} from './ui'
 
 const titles = {purchase:'New purchase order',sale:'New sale',receive:'Receive purchase order',payment:'Record payment',return:'New sales return',preview:'Document preview',statement:'Party statement',item:'Add catalogue item',deleteItem:'Delete catalogue item',party:'Add trading partner',reset:'Reset Demo Data',search:'Search workspace',guide:'Demo walkthrough'}
 export type Dialog = {type:keyof typeof titles;id?:string}
-type Props = {dialog:Dialog;data:Data;error:string;close:()=>void;change:(work:(d:Data)=>void,message:string,keep?:boolean)=>void;open:(type:Dialog['type'],id?:string)=>void;pages:string[];navigate:(p:string)=>void;reset:()=>void}
+type Props = {dialog:Dialog;data:Data;error:string;close:()=>void;change:(work:(d:Data)=>void,message:string,keep?:boolean)=>void;open:(type:Dialog['type'],id?:string)=>void;pages:string[];canEditDocuments:boolean;searchableDocs:Data['docs'];navigate:(p:string)=>void;reset:()=>void}
 const str=(f:FormData,key:string)=>String(f.get(key)??'').trim()
 const number=(f:FormData,key:string)=>Number(f.get(key))
 function Options({values}:{values:string[]}) { return <>{values.map(x=><option key={x}>{x}</option>)}</> }
 
-export function Workflow({dialog,data,error,close,change,open,pages,navigate,reset}:Props) {
+export function Workflow({dialog,data,error,close,change,open,pages,canEditDocuments,searchableDocs,navigate,reset}:Props) {
   const {type,id}=dialog
   const [element,setElement]=useState<HTMLDialogElement|null>(null)
   useEffect(()=>{if(element&&!element.open)element.showModal()},[element])
@@ -67,7 +67,7 @@ export function Workflow({dialog,data,error,close,change,open,pages,navigate,res
         unit:existing&&itemInUse(d)?existing.unit:str(f,'unit')||'Unit',
         price:number(f,'price'),reorder:number(f,'reorder'),
       }
-      if(existing)Object.assign(existing,values)
+      if(existing)updateProduct(d,existing.id,values)
       else d.products.push({id:crypto.randomUUID(),...values})
     },id?'Catalogue item updated.':'Catalogue item added.'),<>
       <div className="form-grid">
@@ -103,7 +103,7 @@ export function Workflow({dialog,data,error,close,change,open,pages,navigate,res
       <div className="print-banner"><div><strong>Meridian Supply Co.</strong><small>{documentName(doc)} · Commercial demo document</small></div><div><b>{doc.id}</b><small>{day(doc.date)}</small></div></div>
       <dl className="details"><dt>Trading partner</dt><dd>{partyName(data,doc.party)}</dd><dt>Warehouse</dt><dd>{warehouse(doc.location)}</dd><dt>Status</dt><dd><Badge label={documentStatus(data,doc)}/></dd>{doc.source&&<><dt>Original invoice</dt><dd>{doc.source}</dd><dt>Stock disposition</dt><dd>{doc.disposition}</dd></>}</dl>
       <Table headers={['Item','Qty','Unit price','Amount',...(doc.kind==='Purchase'?['Received']:[])]} rows={doc.lines.map((l,i)=>[itemName(data,l.item),l.qty,money(l.price),money(l.qty*l.price),...(doc.kind==='Purchase'?[doc.received[i]]:[])])}/>{totals(doc.subtotal,doc.tax,doc.total)}
-      {doc.kind==='Sale'&&<div className="simulation"><strong>FBR simulation</strong><p>{doc.submission??'Not submitted'} · Local demo state</p>{doc.submission!=='Accepted (simulated)'&&<button className="secondary" onClick={()=>change(d=>{d.docs.find(x=>x.id===doc.id)!.submission=doc.submission?'Accepted (simulated)':'Queued (simulated)'},'Simulated submission state saved.',true)}>{doc.submission?'Simulate acceptance':'Simulate submission'}</button>}</div>}
+      {doc.kind==='Sale'&&<div className="simulation"><strong>FBR simulation</strong><p>{doc.submission??'Not submitted'} · Local demo state</p>{canEditDocuments&&doc.submission!=='Accepted (simulated)'&&<button className="secondary" onClick={()=>change(d=>{d.docs.find(x=>x.id===doc.id)!.submission=doc.submission?'Accepted (simulated)':'Queued (simulated)'},'Simulated submission state saved.',true)}>{doc.submission?'Simulate acceptance':'Simulate submission'}</button>}</div>}
       {printActions('Print document')}
     </>}
     {type==='statement'&&party&&<>
@@ -113,7 +113,7 @@ export function Workflow({dialog,data,error,close,change,open,pages,navigate,res
     {type==='reset'&&<><p className="body-copy">Replace this browser’s records with the original fictional sample data?</p><div className="dialog-actions"><button className="secondary" onClick={close}>Cancel</button><button className="danger" onClick={reset}>Reset Demo Data</button></div></>}
     {type==='search'&&<div className="form"><Field label="Find a screen or document"><input autoFocus placeholder="Try Inventory or INV-0001" value={search} onChange={e=>setSearch(e.target.value)}/></Field><div className="search-results">
       {pages.filter(p=>p.toLowerCase().includes(search.toLowerCase())).map(p=><button key={p} onClick={()=>{navigate(p);close()}}>{p}<ChevronRight size={15}/></button>)}
-      {search.trim()&&data.docs.filter(d=>(d.id+' '+partyName(data,d.party)).toLowerCase().includes(search.toLowerCase())).map(d=><button key={d.id} onClick={()=>open('preview',d.id)}>{d.id} · {partyName(data,d.party)}<ChevronRight size={15}/></button>)}
+      {search.trim()&&searchableDocs.filter(d=>(d.id+' '+partyName(data,d.party)).toLowerCase().includes(search.toLowerCase())).map(d=><button key={d.id} onClick={()=>open('preview',d.id)}>{d.id} · {partyName(data,d.party)}<ChevronRight size={15}/></button>)}
     </div></div>}
     {type==='guide'&&<div className="body-copy"><ol><li>Create or approve a purchase order, then receive goods.</li><li>Check stock and receipt movements in Inventory.</li><li>Post a credit sale and collect a payment against it.</li><li>Return an item and select its stock disposition and settlement.</li><li>Review the customer statement, reports and document previews.</li></ol><button className="primary" onClick={()=>{navigate('Purchasing');close()}}>Open purchasing <ArrowRight size={16}/></button></div>}
     </div>

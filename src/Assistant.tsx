@@ -1,6 +1,7 @@
 import {useState} from 'react'
 import {Bot, Send} from 'lucide-react'
-import {applyDraft, fields, labels, loadHistory, localAssistant, saveHistory, unresolved, type Draft} from './assistantService'
+import {applyDraft, fields, labels, loadHistory, localAssistant, mayDraft, saveHistory, unresolved, type Draft} from './assistantService'
+import type {Grant} from './access'
 import {Panel,Field,Badge} from './ui'
 import {day,now,type Data} from './demo'
 import './assistant.css'
@@ -9,8 +10,8 @@ type Message = {speaker:'You'|'Assistant'; text:string; draftId?:string}
 const welcome:Message = {speaker:'Assistant',text:'Ask about your demo records in English or Roman Urdu. I can prepare a draft, and you choose whether to approve it.'}
 const examples = ['Show me low-stock items.', 'Add ABC Traders as a supplier in Karachi.', 'Customer ka outstanding balance dikhao.']
 
-export function Assistant({data,commit}:{data:Data;commit:(work:(draft:Data)=>string)=>string}) {
-  const [history,setHistory] = useState(loadHistory)
+export function Assistant({data,commit,can,userId}:{data:Data;commit:(work:(draft:Data)=>string)=>string;can:Grant;userId:string}) {
+  const [history,setHistory] = useState(()=>loadHistory(userId))
   const [messages,setMessages] = useState<Message[]>([welcome])
   const [input,setInput] = useState('')
   const [view,setView] = useState('Chat')
@@ -18,20 +19,20 @@ export function Assistant({data,commit}:{data:Data;commit:(work:(draft:Data)=>st
   const [followup,setFollowup] = useState('')
   const [error,setError] = useState('')
   function update(id:string,patch:Partial<Draft>) {
-    const next=loadHistory().map(d=>d.id===id?{...d,...patch}:d)
-    saveHistory(next)
+    const next=loadHistory(userId).map(d=>d.id===id?{...d,...patch}:d)
+    saveHistory(userId,next)
     setHistory(next)
   }
   function send(text:string) {
     text=text.trim()
     if(!text)return
-    const continuation = followup && !/^(show|add|create|post|sell|receive|record|list|check|return)\b/i.test(text)
+    const continuation = followup && !/^(show|add|create|post|sell|receive|record|list|check|return|update|edit|change)\b/i.test(text)
     const request = continuation ? followup+' '+text : text
-    const reply = localAssistant.understand(request,data)
+    const reply = localAssistant.understand(request,data,can)
     setFollowup(!reply.draft && /^(Which|Should)/.test(reply.message)?request:'')
     if(reply.draft) {
-      const next=[reply.draft,...loadHistory()]
-      saveHistory(next)
+      const next=[reply.draft,...loadHistory(userId)]
+      saveHistory(userId,next)
       setHistory(next)
     }
     setMessages(old=>[...old,{speaker:'You',text},{speaker:'Assistant',text:reply.message,draftId:reply.draft?.id}])
@@ -40,8 +41,9 @@ export function Assistant({data,commit}:{data:Data;commit:(work:(draft:Data)=>st
   }
   function approve(draft:Draft) {
     setError('')
-    if(loadHistory().find(d=>d.id===draft.id)?.status!=='Pending') {setHistory(loadHistory());return}
+    if(loadHistory(userId).find(d=>d.id===draft.id)?.status!=='Pending') {setHistory(loadHistory(userId));return}
     try {
+      if(!mayDraft(can,draft.action))throw Error('Your demo user does not have permission to apply this draft.')
       const result=commit(current=>applyDraft(current,draft))
       update(draft.id,{status:'Approved',result})
       setMessages(old=>[...old,{speaker:'Assistant',text:result}])
@@ -69,7 +71,7 @@ export function Assistant({data,commit}:{data:Data;commit:(work:(draft:Data)=>st
         <div className="assistant-actions">
           <button className="secondary" onClick={()=>{update(draft.id,{status:'Cancelled'});setError('')}}>Cancel draft</button>
           <button className="secondary" onClick={()=>{update(draft.id,{status:'Rejected'});setError('')}}>Reject</button>
-          <button className="primary" disabled={missing.length>0} onClick={()=>approve(draft)}>Approve &amp; Add</button>
+          <button className="primary" disabled={missing.length>0||!mayDraft(can,draft.action)||(draft.action==='editItem'&&!draft.values.price&&!draft.values.reorder)} onClick={()=>approve(draft)}>{draft.action==='editItem'?'Approve & Save':'Approve & Add'}</button>
         </div>
       </>:<p>{draft.result??'No business change applied.'}</p>}
     </section>

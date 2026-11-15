@@ -1,0 +1,19 @@
+.account-login{min-height:100dvh;display:grid;grid-template-columns:1.1fr 1fr;max-width:none;padding:0}
+.account-brand{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:18px;padding:clamp(28px,8vw,120px);background:linear-gradient(150deg,var(--nav),#193ba9);color:white}
+.account-brand h1{font-size:clamp(40px,6vw,80px);letter-spacing:-.05em}
+.account-brand p{font-size:clamp(16px,2vw,24px);line-height:1.5;color:#e1eaff;max-width:31rem}
+.account-signin{align-self:center;width:min(460px,100%);margin:auto;padding:clamp(24px,5vw,48px)}
+.account-signin h2{font-size:32px;letter-spacing:-.04em}
+.account-signin>p{color:var(--muted);margin-top:8px}
+.account-signin form{display:grid;gap:15px;margin-top:24px}
+.account-demo{margin-top:22px;border:1px solid var(--line);border-radius:10px;padding:13px;background:#e9efff;color:#193cae;font-size:13px}
+.account-demo dl{margin:8px 0 0;display:grid;grid-template-columns:auto 1fr;gap:6px 12px}
+.account-demo dd{margin:0;font-weight:650}
+.account-local,.account-role{font-size:12px;color:var(--muted)}
+.account-message{color:#95212f}
+.account-create>.primary{justify-self:start}
+.account-permissions td{text-align:center}
+.account-permissions thead th:not(:first-child){text-align:center}
+.account-permissions input{accent-color:var(--blue)}
+@media(max-width:690px){.account-login{grid-template-columns:1fr;align-content:start}.account-brand{padding:34px 24px}.account-signin{padding:28px 24px}.account-role{display:none}}
+
